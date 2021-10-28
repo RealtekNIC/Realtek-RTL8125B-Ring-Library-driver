@@ -106,6 +106,8 @@ static const struct {
         [CFG_METHOD_3] = {"RTL8125A",		FIRMWARE_8125A_3},
         [CFG_METHOD_4] = {"RTL8125B",                       },
         [CFG_METHOD_5] = {"RTL8125B",		FIRMWARE_8125B_2},
+        [CFG_METHOD_6] = {"RTL8168KB",		FIRMWARE_8125A_3},
+        [CFG_METHOD_7] = {"RTL8168KB",		FIRMWARE_8125B_2},
         [CFG_METHOD_DEFAULT] = {"Unknown",                  },
 };
 
@@ -143,6 +145,18 @@ static const struct {
         0xff7e5880,
         Jumbo_Frame_9k),
 
+        _R("RTL8168KB",
+        CFG_METHOD_6,
+        BIT_30 | EnableInnerVlan | EnableOuterVlan | (RX_DMA_BURST << RxCfgDMAShift),
+        0xff7e5880,
+        Jumbo_Frame_9k),
+
+        _R("RTL8168KB",
+        CFG_METHOD_7,
+        BIT_30 | RxCfg_pause_slot_en | EnableInnerVlan | EnableOuterVlan | (RX_DMA_BURST << RxCfgDMAShift),
+        0xff7e5880,
+        Jumbo_Frame_9k),
+
         _R("Unknown",
         CFG_METHOD_DEFAULT,
         (RX_DMA_BURST << RxCfgDMAShift),
@@ -158,6 +172,7 @@ static const struct {
 
 static struct pci_device_id rtl8125_pci_tbl[] = {
         { PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8125), },
+        { PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8162), },
         { PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x3000), },
         {0,},
 };
@@ -646,6 +661,7 @@ static u32 rtl8125_read_thermal_sensor(struct rtl8125_private *tp)
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 ts_digout = mdio_direct_read_phy_ocp(tp, 0xBD84);
                 ts_digout &= 0x3ff;
                 break;
@@ -1049,6 +1065,7 @@ static int proc_get_temperature(struct seq_file *m, void *v)
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 seq_puts(m, "\nChip Temperature\n");
                 break;
         default:
@@ -1668,6 +1685,7 @@ static int proc_get_temperature(char *page, char **start,
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 len += snprintf(page + len, count - len,
                                 "\nChip Temperature\n");
                 break;
@@ -2250,6 +2268,8 @@ void rtl8125_oob_mutex_lock(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
         default:
                 ocp_reg_mutex_oob = 0x110;
                 ocp_reg_mutex_ib = 0x114;
@@ -2299,6 +2319,8 @@ void rtl8125_oob_mutex_unlock(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
         default:
                 ocp_reg_mutex_oob = 0x110;
                 ocp_reg_mutex_ib = 0x114;
@@ -2794,6 +2816,8 @@ rtl8125_enable_rxdvgate(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 RTL_W8(tp, 0xF2, RTL_R8(tp, 0xF2) | BIT_3);
                 mdelay(2);
                 break;
@@ -2810,6 +2834,8 @@ rtl8125_disable_rxdvgate(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 RTL_W8(tp, 0xF2, RTL_R8(tp, 0xF2) & ~BIT_3);
                 mdelay(2);
                 break;
@@ -2879,6 +2905,7 @@ rtl8125_stop_all_request(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_2:
         case CFG_METHOD_3:
+        case CFG_METHOD_6:
                 for (i = 0; i < 20; i++) {
                         udelay(10);
                         if (!(RTL_R8(tp, ChipCmd) & StopReq)) break;
@@ -2901,6 +2928,7 @@ rtl8125_wait_txrx_fifo_empty(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 rtl8125_stop_all_request(dev);
                 break;
         }
@@ -2910,6 +2938,8 @@ rtl8125_wait_txrx_fifo_empty(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 for (i = 0; i < 3000; i++) {
                         udelay(50);
                         if ((RTL_R8(tp, MCUCmd_reg) & (Txfifo_empty | Rxfifo_empty)) == (Txfifo_empty | Rxfifo_empty))
@@ -2921,6 +2951,7 @@ rtl8125_wait_txrx_fifo_empty(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 for (i = 0; i < 3000; i++) {
                         udelay(50);
                         if ((RTL_R16(tp, IntrMitigate) & (BIT_0 | BIT_1 | BIT_8)) == (BIT_0 | BIT_1 | BIT_8))
@@ -2961,7 +2992,7 @@ rtl8125_enable_hw_linkchg_interrupt(struct rtl8125_private *tp)
                 RTL_W32(tp, IMR_V2_SET_REG_8125, ISRIMR_V2_LINKCHG);
                 break;
         case 1:
-                RTL_W32(tp, tp->imr_reg[0], LinkChg);
+                RTL_W32(tp, tp->imr_reg[0], LinkChg | RTL_R32(tp, tp->imr_reg[0]));
                 break;
         }
 
@@ -3132,6 +3163,8 @@ rtl8125_hw_clear_timer_int(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 RTL_W32(tp, TIMER_INT0_8125, 0x0000);
                 RTL_W32(tp, TIMER_INT1_8125, 0x0000);
                 RTL_W32(tp, TIMER_INT2_8125, 0x0000);
@@ -3306,6 +3339,8 @@ rtl8125_issue_offset_99_event(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_mac_ocp_write(tp, 0xE09A,  rtl8125_mac_ocp_read(tp, 0xE09A) | BIT_0);
                 break;
         }
@@ -3337,6 +3372,8 @@ static int rtl8125_enable_eee_plus(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_mac_ocp_write(tp, 0xE080, rtl8125_mac_ocp_read(tp, 0xE080)|BIT_1);
                 break;
 
@@ -3359,6 +3396,8 @@ static int rtl8125_disable_eee_plus(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_mac_ocp_write(tp, 0xE080, rtl8125_mac_ocp_read(tp, 0xE080)&~BIT_1);
                 break;
 
@@ -3389,7 +3428,9 @@ rtl8125_link_on_patch(struct net_device *dev)
         if ((tp->mcfg == CFG_METHOD_2 ||
              tp->mcfg == CFG_METHOD_3 ||
              tp->mcfg == CFG_METHOD_4 ||
-             tp->mcfg == CFG_METHOD_5) &&
+             tp->mcfg == CFG_METHOD_5 ||
+             tp->mcfg == CFG_METHOD_6 ||
+             tp->mcfg == CFG_METHOD_7) &&
             (RTL_R8(tp, PHYstatus) & _10bps))
                 rtl8125_enable_eee_plus(tp);
 
@@ -3418,7 +3459,9 @@ rtl8125_link_down_patch(struct net_device *dev)
         if (tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5)
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7)
                 rtl8125_disable_eee_plus(tp);
 
         netif_tx_stop_all_queues(dev);
@@ -3473,6 +3516,38 @@ rtl8125_check_link_status(struct net_device *dev)
 }
 
 static void
+rtl8125_link_option_giga(u8 *aut,
+                         u32 *spd,
+                         u8 *dup,
+                         u32 *adv)
+{
+        if ((*spd != SPEED_1000) &&
+            (*spd != SPEED_100) &&
+            (*spd != SPEED_10))
+                *spd = SPEED_1000;
+
+        if ((*dup != DUPLEX_FULL) && (*dup != DUPLEX_HALF))
+                *dup = DUPLEX_FULL;
+
+        if ((*aut != AUTONEG_ENABLE) && (*aut != AUTONEG_DISABLE))
+                *aut = AUTONEG_ENABLE;
+
+        *adv &= (ADVERTISED_10baseT_Half |
+                 ADVERTISED_10baseT_Full |
+                 ADVERTISED_100baseT_Half |
+                 ADVERTISED_100baseT_Full |
+                 ADVERTISED_1000baseT_Half |
+                 ADVERTISED_1000baseT_Full);
+        if (*adv == 0)
+                *adv = (ADVERTISED_10baseT_Half |
+                        ADVERTISED_10baseT_Full |
+                        ADVERTISED_100baseT_Half |
+                        ADVERTISED_100baseT_Full |
+                        ADVERTISED_1000baseT_Half |
+                        ADVERTISED_1000baseT_Full);
+}
+
+static void
 rtl8125_link_option(u8 *aut,
                     u32 *spd,
                     u8 *dup,
@@ -3515,7 +3590,9 @@ rtl8125_enable_ocp_phy_power_saving(struct net_device *dev)
          if (tp->mcfg == CFG_METHOD_2 ||
              tp->mcfg == CFG_METHOD_3 ||
              tp->mcfg == CFG_METHOD_4 ||
-			 tp->mcfg == CFG_METHOD_5) {
+			 tp->mcfg == CFG_METHOD_5 ||
+			 tp->mcfg == CFG_METHOD_6 ||
+			 tp->mcfg == CFG_METHOD_7) {
                 val = mdio_direct_read_phy_ocp(tp, 0xC416);
                 if (val != 0x0050) {
                         rtl8125_set_phy_mcu_patch_request(tp);
@@ -3536,7 +3613,9 @@ rtl8125_disable_ocp_phy_power_saving(struct net_device *dev)
         if (tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5) {
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7) {
                 val = mdio_direct_read_phy_ocp(tp, 0xC416);
                 if (val != 0x0500) {
                         rtl8125_set_phy_mcu_patch_request(tp);
@@ -3568,6 +3647,8 @@ rtl8125_disable_pci_offset_99(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_mac_ocp_write(tp, 0xE032,  rtl8125_mac_ocp_read(tp, 0xE032) & ~(BIT_0 | BIT_1));
                 break;
         }
@@ -3577,6 +3658,8 @@ rtl8125_disable_pci_offset_99(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_csi_fun0_write_byte(tp, 0x99, 0x00);
                 break;
         }
@@ -3592,6 +3675,8 @@ rtl8125_enable_pci_offset_99(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_csi_fun0_write_byte(tp, 0x99, tp->org_pci_offset_99);
                 break;
         }
@@ -3601,6 +3686,8 @@ rtl8125_enable_pci_offset_99(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 csi_tmp = rtl8125_mac_ocp_read(tp, 0xE032);
                 csi_tmp &= ~(BIT_0 | BIT_1);
                 if (tp->org_pci_offset_99 & (BIT_5 | BIT_6))
@@ -3622,6 +3709,8 @@ rtl8125_init_pci_offset_99(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_mac_ocp_write(tp, 0xCDD0, 0x9003);
                 csi_tmp = rtl8125_mac_ocp_read(tp, 0xE034);
                 csi_tmp |= (BIT_15 | BIT_14);
@@ -3660,6 +3749,8 @@ rtl8125_disable_pci_offset_180(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 csi_tmp = rtl8125_mac_ocp_read(tp, 0xE092);
                 csi_tmp &= 0xFF00;
                 rtl8125_mac_ocp_write(tp, 0xE092, csi_tmp);
@@ -3677,6 +3768,8 @@ rtl8125_enable_pci_offset_180(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 csi_tmp = rtl8125_mac_ocp_read(tp, 0xE094);
                 csi_tmp &= 0x00FF;
                 rtl8125_mac_ocp_write(tp, 0xE094, csi_tmp);
@@ -3688,6 +3781,8 @@ rtl8125_enable_pci_offset_180(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 csi_tmp = rtl8125_mac_ocp_read(tp, 0xE092);
                 csi_tmp &= 0xFF00;
                 csi_tmp |= BIT_2;
@@ -3715,7 +3810,11 @@ rtl8125_set_pci_99_180_exit_driver_para(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
-                rtl8125_issue_offset_99_event(tp);
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
+                if (tp->org_pci_offset_99 & BIT_2)
+                        rtl8125_issue_offset_99_event(tp);
+                rtl8125_disable_pci_offset_99(tp);
                 break;
         }
 
@@ -3724,14 +3823,8 @@ rtl8125_set_pci_99_180_exit_driver_para(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
-                rtl8125_disable_pci_offset_99(tp);
-                break;
-        }
-        switch (tp->mcfg) {
-        case CFG_METHOD_2:
-        case CFG_METHOD_3:
-        case CFG_METHOD_4:
-        case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_disable_pci_offset_180(tp);
                 break;
         }
@@ -3795,6 +3888,8 @@ rtl8125_hw_d3_para(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 RTL_W8(tp, 0xF1, RTL_R8(tp, 0xF1) & ~BIT_7);
                 rtl8125_enable_cfg9346_write(tp);
                 RTL_W8(tp, Config2, RTL_R8(tp, Config2) & ~BIT_7);
@@ -3814,6 +3909,8 @@ rtl8125_hw_d3_para(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_mac_ocp_write(tp, 0xEA18, 0x0064);
                 break;
         }
@@ -3824,7 +3921,9 @@ rtl8125_hw_d3_para(struct net_device *dev)
         if (tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5)
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7)
                 rtl8125_disable_ocp_phy_power_saving(dev);
 
         rtl8125_disable_rxdvgate(dev);
@@ -4182,7 +4281,9 @@ rtl8125_powerdown_pll(struct net_device *dev, u8 from_suspend)
                 if (tp->mcfg == CFG_METHOD_2 ||
                     tp->mcfg == CFG_METHOD_3 ||
                     tp->mcfg == CFG_METHOD_4 ||
-                    tp->mcfg == CFG_METHOD_5) {
+                    tp->mcfg == CFG_METHOD_5 ||
+                    tp->mcfg == CFG_METHOD_6 ||
+                    tp->mcfg == CFG_METHOD_7) {
                         rtl8125_enable_cfg9346_write(tp);
                         RTL_W8(tp, Config2, RTL_R8(tp, Config2) | PMSTS_En);
                         rtl8125_disable_cfg9346_write(tp);
@@ -4219,6 +4320,8 @@ rtl8125_powerdown_pll(struct net_device *dev, u8 from_suspend)
                 case CFG_METHOD_3:
                 case CFG_METHOD_4:
                 case CFG_METHOD_5:
+                case CFG_METHOD_6:
+                case CFG_METHOD_7:
                         RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~BIT_7);
                         break;
                 }
@@ -4229,6 +4332,8 @@ rtl8125_powerdown_pll(struct net_device *dev, u8 from_suspend)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 RTL_W8(tp, 0xF2, RTL_R8(tp, 0xF2) & ~BIT_6);
                 break;
         }
@@ -4243,6 +4348,8 @@ static void rtl8125_powerup_pll(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | BIT_7 | BIT_6);
                 break;
         }
@@ -4617,7 +4724,9 @@ rtl8125_vlan_rx_register(struct net_device *dev,
         if (tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5) {
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7) {
                 if (tp->vlgrp) {
                         tp->rtl8125_rx_config |= (EnableInnerVlan | EnableOuterVlan);
                         RTL_W32(tp, RxConfig, RTL_R32(tp, RxConfig) | (EnableInnerVlan | EnableOuterVlan))
@@ -4788,6 +4897,9 @@ static void rtl8125_gset_xmii(struct net_device *dev,
                     SUPPORTED_TP |
                     SUPPORTED_Pause	|
                     SUPPORTED_Asym_Pause;
+
+        if (tp->mcfg == CFG_METHOD_6 || tp->mcfg == CFG_METHOD_7)
+                supported &= ~SUPPORTED_2500baseX_Full;
 
         advertising = ADVERTISED_TP;
 
@@ -4968,6 +5080,8 @@ static void rtl8125_get_regs(struct net_device *dev, struct ethtool_regs *regs,
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
         default:
                 for (i = 0; i < R8125_ERI_REGS_SIZE; i+=4) {
                         *(u32*)data = rtl8125_eri_read(tp, i , 4, ERIAR_ExGMAC);
@@ -5164,7 +5278,7 @@ rtl8125_get_strings(struct net_device *dev,
 {
         switch (stringset) {
         case ETH_SS_STATS:
-                memcpy(data, *rtl8125_gstrings, sizeof(rtl8125_gstrings));
+                memcpy(data, rtl8125_gstrings, sizeof(rtl8125_gstrings));
                 break;
         }
 }
@@ -5199,6 +5313,8 @@ static int rtl_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
         default:
                 VPD_addr = 0xD2;
                 VPD_data = 0xD4;
@@ -5290,6 +5406,7 @@ static int rtl8125_enable_eee(struct rtl8125_private *tp)
         switch (tp->mcfg) {
         case CFG_METHOD_2:
         case CFG_METHOD_3:
+        case CFG_METHOD_6:
                 RTL_W16(tp, EEE_TXIDLE_TIMER_8125, eee->tx_lpi_timer);
 
                 SetMcuAccessRegBit(tp, 0xE040, (BIT_1|BIT_0));
@@ -5305,6 +5422,7 @@ static int rtl8125_enable_eee(struct rtl8125_private *tp)
                 break;
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 RTL_W16(tp, EEE_TXIDLE_TIMER_8125, eee->tx_lpi_timer);
 
                 SetMcuAccessRegBit(tp, 0xE040, (BIT_1|BIT_0));
@@ -5331,6 +5449,8 @@ static int rtl8125_enable_eee(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_set_phy_mcu_patch_request(tp);
                 ClearMcuAccessRegBit(tp, 0xE052, BIT_0);
                 ClearEthPhyOcpBit(tp, 0xA442, BIT_12 | BIT_13);
@@ -5350,6 +5470,7 @@ static int rtl8125_disable_eee(struct rtl8125_private *tp)
         switch (tp->mcfg) {
         case CFG_METHOD_2:
         case CFG_METHOD_3:
+        case CFG_METHOD_6:
                 ClearMcuAccessRegBit(tp, 0xE040, (BIT_1|BIT_0));
                 ClearMcuAccessRegBit(tp, 0xEB62, (BIT_2|BIT_1));
 
@@ -5363,6 +5484,7 @@ static int rtl8125_disable_eee(struct rtl8125_private *tp)
                 break;
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 ClearMcuAccessRegBit(tp, 0xE040, (BIT_1|BIT_0));
 
                 ClearEthPhyOcpBit(tp, 0xA5D0, (BIT_2 | BIT_1));
@@ -5384,6 +5506,8 @@ static int rtl8125_disable_eee(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_set_phy_mcu_patch_request(tp);
                 ClearMcuAccessRegBit(tp, 0xE052, BIT_0);
                 ClearEthPhyOcpBit(tp, 0xA442, BIT_12 | BIT_13);
@@ -5644,6 +5768,8 @@ static int rtl8125_enable_green_feature(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 mdio_direct_write_phy_ocp(tp, 0xA436, 0x8011);
                 SetEthPhyOcpBit(tp, 0xA438, BIT_15);
                 rtl8125_mdio_write(tp, 0x00, 0x9200);
@@ -5665,6 +5791,8 @@ static int rtl8125_disable_green_feature(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 mdio_direct_write_phy_ocp(tp, 0xA436, 0x8011);
                 ClearEthPhyOcpBit(tp, 0xA438, BIT_15);
                 rtl8125_mdio_write(tp, 0x00, 0x9200);
@@ -5683,6 +5811,7 @@ static void rtl8125_get_mac_version(struct rtl8125_private *tp)
 {
         u32 reg,val32;
         u32 ICVerID;
+        struct pci_dev *pdev = tp->pci_dev;
 
         val32 = RTL_R32(tp, TxConfig);
         reg = val32 & 0x7c800000;
@@ -5719,6 +5848,13 @@ static void rtl8125_get_mac_version(struct rtl8125_private *tp)
                 tp->HwIcVerUnknown = TRUE;
                 tp->efuse_ver = EFUSE_NOT_SUPPORT;
                 break;
+        }
+
+        if (pdev->subsystem_vendor == 0x8162) {
+                if (tp->mcfg == CFG_METHOD_3)
+                        tp->mcfg = CFG_METHOD_6;
+                else if (tp->mcfg == CFG_METHOD_5)
+                        tp->mcfg = CFG_METHOD_7;
         }
 }
 
@@ -5765,6 +5901,7 @@ rtl8125_clear_phy_ups_reg(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 ClearEthPhyOcpBit(tp, 0xA466, BIT_0);
                 break;
         };
@@ -5779,7 +5916,9 @@ rtl8125_is_ups_resume(struct net_device *dev)
         if (tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5)
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7)
                 return (rtl8125_mac_ocp_read(tp, 0xD42C) & BIT_8);
 
         return 0;
@@ -5793,7 +5932,9 @@ rtl8125_clear_ups_resume_bit(struct net_device *dev)
         if (tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5)
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7)
                 rtl8125_mac_ocp_write(tp, 0xD408, rtl8125_mac_ocp_read(tp, 0xD408) & ~(BIT_8));
 }
 
@@ -5807,7 +5948,9 @@ rtl8125_wait_phy_ups_resume(struct net_device *dev, u16 PhyState)
         if (tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5) {
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7) {
                 do {
                         TmpPhyState = mdio_direct_read_phy_ocp(tp, 0xA420);
                         TmpPhyState &= 0x7;
@@ -5848,8 +5991,7 @@ rtl8125_exit_oob(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_2:
         case CFG_METHOD_3:
-        case CFG_METHOD_4:
-        case CFG_METHOD_5:
+        case CFG_METHOD_6:
                 rtl8125_dash2_disable_txrx(dev);
                 break;
         }
@@ -5871,6 +6013,8 @@ rtl8125_exit_oob(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_mac_ocp_write(tp, 0xC0BC, 0x00FF);
                 break;
         }
@@ -5883,6 +6027,8 @@ rtl8125_exit_oob(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_disable_now_is_oob(tp);
 
                 data16 = rtl8125_mac_ocp_read(tp, 0xE8DE) & ~BIT_14;
@@ -5903,6 +6049,8 @@ rtl8125_exit_oob(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 if (rtl8125_is_ups_resume(dev)) {
                         rtl8125_wait_phy_ups_resume(dev, 2);
                         rtl8125_clear_ups_resume_bit(dev);
@@ -5915,6 +6063,8 @@ rtl8125_exit_oob(struct net_device *dev)
 void
 rtl8125_hw_disable_mac_mcu_bps(struct net_device *dev)
 {
+        u16 regAddr;
+
         struct rtl8125_private *tp = netdev_priv(dev);
 
         switch (tp->mcfg) {
@@ -5922,6 +6072,8 @@ rtl8125_hw_disable_mac_mcu_bps(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_enable_cfg9346_write(tp);
                 RTL_W8(tp, Config5, RTL_R8(tp, Config5) & ~BIT_0);
                 RTL_W8(tp, Config2, RTL_R8(tp, Config2) & ~BIT_7);
@@ -5934,7 +6086,9 @@ rtl8125_hw_disable_mac_mcu_bps(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
-                rtl8125_mac_ocp_write(tp, 0xFC38, 0x0000);
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
+                rtl8125_mac_ocp_write(tp, 0xFC48, 0x0000);
                 break;
         }
 
@@ -5943,15 +6097,14 @@ rtl8125_hw_disable_mac_mcu_bps(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
-                rtl8125_mac_ocp_write(tp, 0xFC28, 0x0000);
-                rtl8125_mac_ocp_write(tp, 0xFC2A, 0x0000);
-                rtl8125_mac_ocp_write(tp, 0xFC2C, 0x0000);
-                rtl8125_mac_ocp_write(tp, 0xFC2E, 0x0000);
-                rtl8125_mac_ocp_write(tp, 0xFC30, 0x0000);
-                rtl8125_mac_ocp_write(tp, 0xFC32, 0x0000);
-                rtl8125_mac_ocp_write(tp, 0xFC34, 0x0000);
-                rtl8125_mac_ocp_write(tp, 0xFC36, 0x0000);
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
+                for (regAddr = 0xFC28; regAddr < 0xFC48; regAddr += 2) {
+                        rtl8125_mac_ocp_write(tp, regAddr, 0x0000);
+                }
+
                 mdelay(3);
+
                 rtl8125_mac_ocp_write(tp, 0xFC26, 0x0000);
                 break;
         }
@@ -5999,6 +6152,8 @@ rtl8125_hw_init(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_enable_cfg9346_write(tp);
                 RTL_W8(tp, Config5, RTL_R8(tp, Config5) & ~BIT_0);
                 RTL_W8(tp, Config2, RTL_R8(tp, Config2) & ~BIT_7);
@@ -6013,6 +6168,8 @@ rtl8125_hw_init(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_mac_ocp_write(tp, 0xD40A, rtl8125_mac_ocp_read( tp, 0xD40A) & ~(BIT_4));
                 break;
         }
@@ -6021,7 +6178,9 @@ rtl8125_hw_init(struct net_device *dev)
         if (tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5)
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7)
                 rtl8125_disable_ocp_phy_power_saving(dev);
 
         //Set PCIE uncorrectable error status mask pcie 0x108
@@ -6081,6 +6240,7 @@ rtl8125_hw_ephy_config(struct net_device *dev)
                 rtl8125_ephy_write(tp, 0x63, 0xAB62);
                 break;
         case CFG_METHOD_3:
+        case CFG_METHOD_6:
                 rtl8125_ephy_write(tp, 0x04, 0xD000);
                 rtl8125_ephy_write(tp, 0x0A, 0x8653);
                 rtl8125_ephy_write(tp, 0x23, 0xAB66);
@@ -6147,6 +6307,7 @@ rtl8125_hw_ephy_config(struct net_device *dev)
                 rtl8125_ephy_write(tp, 0x5B, 0x1EA0);
                 break;
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 rtl8125_ephy_write(tp, 0x0B, 0xA908);
                 rtl8125_ephy_write(tp, 0x22, 0x0023);
                 rtl8125_ephy_write(tp, 0x1E, 0x28EB);
@@ -6168,6 +6329,8 @@ rtl8125_get_hw_phy_mcu_code_ver(struct rtl8125_private *tp)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 mdio_direct_write_phy_ocp(tp, 0xA436, 0x801E);
                 hw_ram_code_ver = mdio_direct_read_phy_ocp(tp, 0xA438);
                 break;
@@ -7142,12 +7305,14 @@ rtl8125_hw_phy_config(struct net_device *dev)
                 rtl8125_hw_phy_config_8125a_1(dev);
                 break;
         case CFG_METHOD_3:
+        case CFG_METHOD_6:
                 rtl8125_hw_phy_config_8125a_2(dev);
                 break;
         case CFG_METHOD_4:
                 rtl8125_hw_phy_config_8125b_1(dev);
                 break;
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 rtl8125_hw_phy_config_8125b_2(dev);
                 break;
         }
@@ -7158,6 +7323,8 @@ rtl8125_hw_phy_config(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
         default:
                 rtl8125_mdio_write(tp, 0x1F, 0x0A5B);
                 rtl8125_clear_eth_phy_bit(tp, 0x12, BIT_15);
@@ -7168,7 +7335,8 @@ rtl8125_hw_phy_config(struct net_device *dev)
         /*ocp phy power saving*/
         /*
         if (aspm) {
-        if (tp->mcfg == CFG_METHOD_2 || tp->mcfg == CFG_METHOD_3)
+        if (tp->mcfg == CFG_METHOD_2 || tp->mcfg == CFG_METHOD_3 ||
+            tp->mcfg == CFG_METHOD_6)
                 rtl8125_enable_ocp_phy_power_saving(dev);
         }
         */
@@ -7273,6 +7441,8 @@ rtl8125_get_bios_setting(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->bios_setting = RTL_R32(tp, TimeInt2);
                 break;
         }
@@ -7288,6 +7458,8 @@ rtl8125_set_bios_setting(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 RTL_W32(tp, TimeInt2, tp->bios_setting);
                 break;
         }
@@ -7341,8 +7513,6 @@ rtl8125_init_software_variable(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_2:
         case CFG_METHOD_3:
-        case CFG_METHOD_4:
-        case CFG_METHOD_5:
                 //tp->HwSuppDashVer = 3;
                 break;
         default:
@@ -7355,6 +7525,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->HwPkgDet = rtl8125_mac_ocp_read(tp, 0xDC00);
                 tp->HwPkgDet = (tp->HwPkgDet >> 3) & 0x07;
                 break;
@@ -7368,6 +7540,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->HwSuppNowIsOobVer = 1;
                 break;
         }
@@ -7377,6 +7551,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->HwPcieSNOffset = 0x16C;
                 break;
         }
@@ -7432,6 +7608,8 @@ rtl8125_init_software_variable(struct net_device *dev)
                 case CFG_METHOD_3:
                 case CFG_METHOD_4:
                 case CFG_METHOD_5:
+                case CFG_METHOD_6:
+                case CFG_METHOD_7:
                         tp->org_pci_offset_99 = rtl8125_csi_fun0_read_byte(tp, 0x99);
                         tp->org_pci_offset_99 &= ~(BIT_5|BIT_6);
                         break;
@@ -7440,10 +7618,12 @@ rtl8125_init_software_variable(struct net_device *dev)
                 switch (tp->mcfg) {
                 case CFG_METHOD_2:
                 case CFG_METHOD_3:
+                case CFG_METHOD_6:
                         tp->org_pci_offset_180 = rtl8125_csi_fun0_read_byte(tp, 0x264);
                         break;
                 case CFG_METHOD_4:
                 case CFG_METHOD_5:
+                case CFG_METHOD_7:
                         tp->org_pci_offset_180 = rtl8125_csi_fun0_read_byte(tp, 0x214);
                         break;
                 }
@@ -7457,6 +7637,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
         default:
                 tp->use_timer_interrrupt = TRUE;
                 break;
@@ -7470,6 +7652,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->HwSuppMagicPktVer = WAKEUP_MAGIC_PACKET_V3;
                 break;
         default:
@@ -7482,6 +7666,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->HwSuppLinkChgWakeUpVer = 3;
                 break;
         }
@@ -7490,6 +7676,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->HwSuppD0SpeedUpVer = 1;
                 break;
         }
@@ -7499,6 +7687,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->HwSuppCheckPhyDisableModeVer = 3;
                 break;
         }
@@ -7508,6 +7698,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->HwSuppTxNoCloseVer = 3;
                 break;
         }
@@ -7518,6 +7710,7 @@ rtl8125_init_software_variable(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_2:
         case CFG_METHOD_3:
+        case CFG_METHOD_6:
                 tp->RequireLSOPatch = TRUE;
                 break;
         }
@@ -7527,12 +7720,14 @@ rtl8125_init_software_variable(struct net_device *dev)
                 tp->sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_2;
                 break;
         case CFG_METHOD_3:
+        case CFG_METHOD_6:
                 tp->sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_3;
                 break;
         case CFG_METHOD_4:
                 tp->sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_4;
                 break;
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 tp->sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_5;
                 break;
         }
@@ -7544,17 +7739,39 @@ rtl8125_init_software_variable(struct net_device *dev)
 
         switch (tp->mcfg) {
         case CFG_METHOD_3:
+        case CFG_METHOD_6:
                 if ((rtl8125_mac_ocp_read(tp, 0xD442) & BIT_5) &&
-                    (mdio_direct_read_phy_ocp(tp, 0xD068) & BIT_1)
-                   ) {
+                    (mdio_direct_read_phy_ocp(tp, 0xD068) & BIT_1))
                         tp->RequirePhyMdiSwapPatch = TRUE;
-                }
+                break;
+        }
+
+        switch (tp->mcfg) {
+        case CFG_METHOD_2:
+        case CFG_METHOD_3:
+        case CFG_METHOD_4:
+        case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
+                tp->HwSuppMacMcuVer = 2;
+                break;
+        }
+
+        switch (tp->mcfg) {
+        case CFG_METHOD_2:
+        case CFG_METHOD_3:
+        case CFG_METHOD_4:
+        case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
+                tp->MacMcuPageSize = RTL8125_MAC_MCU_PAGE_SIZE;
                 break;
         }
 
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 tp->HwSuppNumTxQueues = 2;
                 tp->HwSuppNumRxQueues = 4;
                 break;
@@ -7574,6 +7791,7 @@ rtl8125_init_software_variable(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 tp->HwSuppRssVer = 5;
                 tp->HwSuppIndirTblEntries = 128;
                 break;
@@ -7606,6 +7824,7 @@ rtl8125_init_software_variable(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 tp->HwSuppPtpVer = 1;
                 break;
         }
@@ -7631,6 +7850,7 @@ rtl8125_init_software_variable(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 tp->HwSuppIsrVer = 2;
                 break;
         default:
@@ -7674,10 +7894,12 @@ rtl8125_init_software_variable(struct net_device *dev)
         switch (tp->mcfg) {
         case CFG_METHOD_2:
         case CFG_METHOD_3:
+        case CFG_METHOD_6:
                 tp->HwSuppIntMitiVer = 3;
                 break;
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 tp->HwSuppIntMitiVer = 4;
                 break;
         }
@@ -7687,6 +7909,8 @@ rtl8125_init_software_variable(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 tp->HwSuppExtendTallyCounterVer = 1;
                 break;
         }
@@ -7698,7 +7922,10 @@ rtl8125_init_software_variable(struct net_device *dev)
         tp->wol_opts = rtl8125_get_hw_wol(tp);
         tp->wol_enabled = (tp->wol_opts) ? WOL_ENABLED : WOL_DISABLED;
 
-        rtl8125_link_option((u8*)&autoneg_mode, (u32*)&speed_mode, (u8*)&duplex_mode, (u32*)&advertising_mode);
+        if (tp->mcfg == CFG_METHOD_6 || tp->mcfg == CFG_METHOD_7)
+                rtl8125_link_option_giga((u8*)&autoneg_mode, (u32*)&speed_mode, (u8*)&duplex_mode, (u32*)&advertising_mode);
+        else
+                rtl8125_link_option((u8*)&autoneg_mode, (u32*)&speed_mode, (u8*)&duplex_mode, (u32*)&advertising_mode);
 
         tp->autoneg = autoneg_mode;
         tp->speed = speed_mode;
@@ -7774,7 +8001,9 @@ rtl8125_get_mac_address(struct net_device *dev)
         if(tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5) {
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7) {
                 *(u32*)&mac_addr[0] = RTL_R32(tp, BACKUP_ADDR0_8125);
                 *(u16*)&mac_addr[4] = RTL_R16(tp, BACKUP_ADDR1_8125);
         }
@@ -8613,6 +8842,8 @@ rtl8125_phy_power_up(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_wait_phy_ups_resume(dev, 3);
                 break;
         };
@@ -8822,6 +9053,12 @@ rtl8125_esd_checker(struct rtl8125_private *tp)
                 printk(KERN_ERR "%s: cmd = 0x%02x, should be 0x%02x \n.", dev->name, cmd, tp->pci_cfg_space.cmd);
                 pci_write_config_byte(pdev, PCI_COMMAND, tp->pci_cfg_space.cmd);
                 tp->esd_flag |= BIT_0;
+
+                pci_read_config_byte(pdev, PCI_COMMAND, &cmd);
+                if (cmd == 0xff) {
+                        printk(KERN_ERR "%s: pci link is down \n.", dev->name);
+                        goto exit;
+                }
         }
 
         pci_read_config_word(pdev, PCI_BASE_ADDRESS_0, &io_base_l);
@@ -8937,6 +9174,8 @@ rtl8125_esd_checker(struct rtl8125_private *tp)
                 rtl8125_set_speed(dev, tp->autoneg, tp->speed, tp->duplex, tp->advertising);
                 tp->esd_flag = 0;
         }
+exit:
+        return;
 }
 /*
 static void
@@ -9046,6 +9285,7 @@ static int rtl8125_try_msi(struct rtl8125_private *tp)
         switch (tp->mcfg) {
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_7:
                 tp->max_irq_nvecs = R8125_MAX_MSIX_VEC_8125B;
                 tp->min_irq_nvecs = R8125_MIN_MSIX_VEC_8125B;
                 break;
@@ -9422,7 +9662,9 @@ rtl8125_init_one(struct pci_dev *pdev,
                 dev_err(&pdev->dev, "Can't allocate interrupt\n");
                 goto err_out_1;
         }
-
+#ifdef ENABLE_PTP_SUPPORT
+        spin_lock_init(&tp->lock);
+#endif
         rtl8125_init_software_variable(dev);
 
         RTL_NET_DEVICE_OPS(rtl8125_netdev_ops);
@@ -10027,6 +10269,8 @@ rtl8125_hw_config(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 RTL_W8(tp, 0xF1, RTL_R8(tp, 0xF1) & ~BIT_7);
                 RTL_W8(tp, Config2, RTL_R8(tp, Config2) & ~BIT_7);
                 RTL_W8(tp, Config5, RTL_R8(tp, Config5) & ~BIT_0);
@@ -10039,6 +10283,8 @@ rtl8125_hw_config(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~BIT_1);
                 break;
         }
@@ -10048,6 +10294,8 @@ rtl8125_hw_config(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 //IntMITI_0-IntMITI_31
                 for (i=0xA00; i<0xB00; i+=4)
                         RTL_W32(tp, i, 0x00000000);
@@ -10060,6 +10308,8 @@ rtl8125_hw_config(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 mac_ocp_data = rtl8125_mac_ocp_read(tp, 0xC0B6);
                 mac_ocp_data &= BIT_0;
                 rtl8125_mac_ocp_write(tp, 0xC0B6, mac_ocp_data);
@@ -10082,7 +10332,9 @@ rtl8125_hw_config(struct net_device *dev)
         if (tp->mcfg == CFG_METHOD_2 ||
             tp->mcfg == CFG_METHOD_3 ||
             tp->mcfg == CFG_METHOD_4 ||
-            tp->mcfg == CFG_METHOD_5) {
+            tp->mcfg == CFG_METHOD_5 ||
+            tp->mcfg == CFG_METHOD_6 ||
+            tp->mcfg == CFG_METHOD_7) {
                 set_offset70F(tp, 0x27);
                 set_offset79(tp, 0x50);
 
@@ -10107,21 +10359,19 @@ rtl8125_hw_config(struct net_device *dev)
 
                 mac_ocp_data = rtl8125_mac_ocp_read(tp, 0xE614);
                 mac_ocp_data &= ~( BIT_10 | BIT_9 | BIT_8);
-                if (tp->mcfg == CFG_METHOD_4 || tp->mcfg == CFG_METHOD_5) {
+                if (tp->mcfg == CFG_METHOD_4 || tp->mcfg == CFG_METHOD_5 ||
+                    tp->mcfg == CFG_METHOD_7)
                         mac_ocp_data |= ((2 & 0x07) << 8);
-                } else {
-                        if (tp->DASH && !(rtl8125_csi_fun0_read_byte(tp, 0x79) & BIT_0))
-                                mac_ocp_data |= ((3 & 0x07) << 8);
-                        else
-                                mac_ocp_data |= ((4 & 0x07) << 8);
-                }
+                else
+                        mac_ocp_data |= ((3 & 0x07) << 8);
                 rtl8125_mac_ocp_write(tp, 0xE614, mac_ocp_data);
 
                 rtl8125_set_tx_q_num(tp, rtl8125_tot_tx_rings(tp));
 
                 mac_ocp_data = rtl8125_mac_ocp_read(tp, 0xE63E);
                 mac_ocp_data &= ~(BIT_5 | BIT_4);
-                if (tp->mcfg == CFG_METHOD_2 || tp->mcfg == CFG_METHOD_3)
+                if (tp->mcfg == CFG_METHOD_2 || tp->mcfg == CFG_METHOD_3 ||
+                    tp->mcfg == CFG_METHOD_6)
                         mac_ocp_data |= ((0x02 & 0x03) << 4);
                 rtl8125_mac_ocp_write(tp, 0xE63E, mac_ocp_data);
 
@@ -10179,7 +10429,8 @@ rtl8125_hw_config(struct net_device *dev)
                 else
                         RTL_W8(tp, 0xD0, (RTL_R8(tp, 0xD0) & ~BIT_6) | BIT_7);
 
-                if (tp->mcfg == CFG_METHOD_2 || tp->mcfg == CFG_METHOD_3)
+                if (tp->mcfg == CFG_METHOD_2 || tp->mcfg == CFG_METHOD_3 ||
+                    tp->mcfg == CFG_METHOD_6)
                         RTL_W8(tp, MCUCmd_reg, RTL_R8(tp, MCUCmd_reg) | BIT_0);
 
                 rtl8125_disable_eee_plus(tp);
@@ -10225,6 +10476,8 @@ rtl8125_hw_config(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 rtl8125_mac_ocp_write(tp, 0xE098, 0xC302);
                 break;
         }
@@ -10234,6 +10487,8 @@ rtl8125_hw_config(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 if (aspm) {
                         rtl8125_init_pci_offset_99(tp);
                 }
@@ -10244,6 +10499,8 @@ rtl8125_hw_config(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 if (aspm) {
                         rtl8125_init_pci_offset_180(tp);
                 }
@@ -10264,7 +10521,9 @@ rtl8125_hw_config(struct net_device *dev)
         case CFG_METHOD_2:
         case CFG_METHOD_3:
         case CFG_METHOD_4:
-        case CFG_METHOD_5: {
+        case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7: {
                 int timeout;
                 for (timeout = 0; timeout < 10; timeout++) {
                         if ((rtl8125_mac_ocp_read(tp, 0xE00E) & BIT_13)==0)
@@ -10315,6 +10574,8 @@ rtl8125_hw_config(struct net_device *dev)
         case CFG_METHOD_3:
         case CFG_METHOD_4:
         case CFG_METHOD_5:
+        case CFG_METHOD_6:
+        case CFG_METHOD_7:
                 if (aspm) {
                         RTL_W8(tp, Config5, RTL_R8(tp, Config5) | BIT_0);
                         RTL_W8(tp, Config2, RTL_R8(tp, Config2) | BIT_7);
@@ -10891,9 +11152,15 @@ static void rtl8125_reset_task(struct work_struct *work)
 #ifdef ENABLE_PTP_SUPPORT
                 rtl8125_ptp_reset(tp);
 #endif
-                rtl8125_enable_hw_linkchg_interrupt(tp);
+                if (tp->resume_not_chg_speed) {
+                        _rtl8125_check_link_status(dev);
 
-                rtl8125_set_speed(dev, tp->autoneg, tp->speed, tp->duplex, tp->advertising);
+                        tp->resume_not_chg_speed = 0;
+                } else {
+                        rtl8125_enable_hw_linkchg_interrupt(tp);
+
+                        rtl8125_set_speed(dev, tp->autoneg, tp->speed, tp->duplex, tp->advertising);
+                }
         } else {
                 if (unlikely(net_ratelimit())) {
                         struct rtl8125_private *tp = netdev_priv(dev);
@@ -12311,6 +12578,21 @@ rtl8125_hw_d3_not_power_off(struct net_device *dev)
         return rtl8125_check_hw_phy_mcu_code_ver(dev);
 }
 
+static int rtl8125_wait_phy_nway_complete_sleep(struct rtl8125_private *tp)
+{
+        int i, val;
+
+        for (i = 0; i < 30; i++) {
+                val = rtl8125_mdio_read(tp, MII_BMSR) & BMSR_ANEGCOMPLETE;
+                if (val)
+                        return 0;
+
+                msleep(100);
+        }
+
+        return -1;
+}
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 static int
 rtl8125_resume(struct pci_dev *pdev)
@@ -12348,12 +12630,12 @@ rtl8125_resume(struct device *device)
         /* restore last modified mac address */
         rtl8125_rar_set(tp, dev->dev_addr);
 
+        tp->resume_not_chg_speed = 0;
         if (tp->check_keep_link_speed &&
             //tp->link_ok(dev) &&
-            rtl8125_hw_d3_not_power_off(dev))
+            rtl8125_hw_d3_not_power_off(dev) &&
+            rtl8125_wait_phy_nway_complete_sleep(tp) == 0)
                 tp->resume_not_chg_speed = 1;
-        else
-                tp->resume_not_chg_speed = 0;
 
         if (!netif_running(dev))
                 goto out_unlock;
@@ -12366,10 +12648,7 @@ rtl8125_resume(struct device *device)
 
         clear_bit(R8125_FLAG_DOWN, tp->task_flags);
 
-        if (tp->resume_not_chg_speed)
-                _rtl8125_check_link_status(dev);
-        else
-                rtl8125_schedule_reset_work(tp);
+        rtl8125_schedule_reset_work(tp);
 
         rtl8125_schedule_esd_work(tp);
 
