@@ -130,3 +130,14 @@
 	, where X=0,1,2,..., and MTU is configured by user.
 
 	RTL8125 supports Jumbo Frame size up to 9 kBytes.
+
+<EEE>
+    Get/Set device EEE status
+
+		Get EEE device status
+		# ethtool --show-eee enp1s0
+
+		Set EEE device status
+		# ethtool --set-eee enp1s0 eee on tx-lpi on tx-timer 1546 advertise 0x0008 (100M full)
+		# ethtool --set-eee enp1s0 eee on tx-lpi on tx-timer 1546 advertise 0x0020 (1G)
+		# ethtool --set-eee enp1s0 eee on tx-lpi on tx-timer 1546 advertise 0x8000 (2.5G)

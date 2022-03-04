@@ -509,13 +509,13 @@ int rtl8125_request_event(struct rtl8125_ring *ring, unsigned long flags,
                 /* Initialize any MSI-X/interrupt related register in HW */
                 u16 reg = message_id * 0x10;
 
+                if (!rtnl_trylock())
+                        locked = false;
+
                 ring->event.addr = rtl8125_eri_read(tp, reg, 4, ERIAR_MSIX);
                 ring->event.addr |= (u64)rtl8125_eri_read(tp, reg + 4, 4, ERIAR_MSIX) << 32;
                 ring->event.data = rtl8125_eri_read(tp, reg + 8, 4, ERIAR_MSIX);
                 ring->event.data |= (u64)rtl8125_eri_read(tp, reg + 8, 4, ERIAR_MSIX) << 32;
-
-                if (!rtnl_trylock())
-                        locked = false;
 
                 rtl8125_eri_write(tp, reg, 4, (u64)addr & DMA_BIT_MASK(32), ERIAR_MSIX);
                 rtl8125_eri_write(tp, reg + 4, 4, (u64)addr >> 32, ERIAR_MSIX);
