@@ -3119,12 +3119,21 @@ rtl8125_irq_mask_and_ack(struct rtl8125_private *tp)
 }
 
 static void
+rtl8125_disable_rx_packet_filter(struct rtl8125_private *tp)
+{
+
+        RTL_W32(tp, RxConfig, RTL_R32(tp, RxConfig) &
+                ~(AcceptErr | AcceptRunt |AcceptBroadcast | AcceptMulticast |
+                  AcceptMyPhys |  AcceptAllPhys));
+}
+
+static void
 rtl8125_nic_reset(struct net_device *dev)
 {
         struct rtl8125_private *tp = netdev_priv(dev);
         int i;
 
-        RTL_W32(tp, RxConfig, (RX_DMA_BURST << RxCfgDMAShift));
+        rtl8125_disable_rx_packet_filter(tp);
 
         rtl8125_enable_rxdvgate(dev);
 
@@ -6091,7 +6100,7 @@ rtl8125_exit_oob(struct net_device *dev)
         struct rtl8125_private *tp = netdev_priv(dev);
         u16 data16;
 
-        RTL_W32(tp, RxConfig, RTL_R32(tp, RxConfig) & ~(AcceptErr | AcceptRunt | AcceptBroadcast | AcceptMulticast | AcceptMyPhys |  AcceptAllPhys));
+        rtl8125_disable_rx_packet_filter(tp);
 
         switch (tp->mcfg) {
         case CFG_METHOD_2:
@@ -9750,7 +9759,7 @@ static int rtl8125_poll_msix_rx(napi_ptr napi, napi_budget budget)
         return RTL_NAPI_RETURN_VALUE;
 }
 
-static void rtl8125_enable_napi(struct rtl8125_private *tp)
+void rtl8125_enable_napi(struct rtl8125_private *tp)
 {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
         int i;
@@ -10510,7 +10519,6 @@ rtl8125_hw_config(struct net_device *dev)
         struct rtl8125_private *tp = netdev_priv(dev);
         struct pci_dev *pdev = tp->pci_dev;
         u16 mac_ocp_data;
-        int i;
 
         RTL_W32(tp, RxConfig, (RX_DMA_BURST << RxCfgDMAShift));
 
@@ -11312,7 +11320,7 @@ rtl8125_wait_for_irq_complete(struct rtl8125_private *tp)
         }
 }
 
-static void
+void
 _rtl8125_wait_for_quiescence(struct net_device *dev)
 {
         struct rtl8125_private *tp = netdev_priv(dev);

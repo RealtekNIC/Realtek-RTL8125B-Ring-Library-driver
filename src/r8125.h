@@ -367,7 +367,7 @@ do { \
 #define RSS_SUFFIX ""
 #endif
 
-#define RTL8125_VERSION "9.009.03" NAPI_SUFFIX DASH_SUFFIX REALWOW_SUFFIX PTP_SUFFIX RSS_SUFFIX
+#define RTL8125_VERSION "9.009.04" NAPI_SUFFIX DASH_SUFFIX REALWOW_SUFFIX PTP_SUFFIX RSS_SUFFIX
 #define MODULENAME "r8125"
 #define PFX MODULENAME ": "
 
@@ -2515,6 +2515,8 @@ int rtl8125_init_ring(struct net_device *dev);
 void rtl8125_hw_set_rx_packet_filter(struct net_device *dev);
 void rtl8125_enable_hw_linkchg_interrupt(struct rtl8125_private *tp);
 int rtl8125_dump_tally_counter(struct rtl8125_private *tp, dma_addr_t paddr);
+void rtl8125_enable_napi(struct rtl8125_private *tp);
+void _rtl8125_wait_for_quiescence(struct net_device *dev);
 
 #ifndef ENABLE_LIB_SUPPORT
 static inline void rtl8125_lib_reset_prepare(struct rtl8125_private *tp) { }
