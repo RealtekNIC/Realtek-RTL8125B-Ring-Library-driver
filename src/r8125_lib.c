@@ -730,32 +730,6 @@ EXPORT_SYMBOL(rtl8125_lib_reset_prepare);
 
 void rtl8125_lib_reset_complete(struct rtl8125_private *tp)
 {
-        int i;
-
-        for (i = tp->num_tx_rings; i < tp->HwSuppNumTxQueues; i++) {
-                struct rtl8125_ring *ring = &tp->lib_tx_ring[i];
-
-                if (!ring->allocated)
-                        continue;
-
-                if (ring->event.enabled)
-                        rtl8125_enable_event(ring);
-
-                rtl8125_init_tx_ring(ring);
-        }
-
-        for (i = tp->num_rx_rings; i < tp->HwSuppNumRxQueues; i++) {
-                struct rtl8125_ring *ring = &tp->lib_rx_ring[i];
-
-                if (!ring->allocated)
-                        continue;
-
-                if (ring->event.enabled)
-                        rtl8125_enable_event(ring);
-
-                rtl8125_init_rx_ring(ring);
-        }
-
         atomic_notifier_call_chain(&tp->lib_nh,
                                    RTL8125_NOTIFY_RESET_COMPLETE, NULL);
 }
@@ -874,6 +848,35 @@ int rtl8125_lib_save_regs(struct net_device *ndev, struct rtl8125_regs_save *sta
         return 0;
 }
 EXPORT_SYMBOL(rtl8125_lib_save_regs);
+
+void rtl8125_init_lib_ring(struct rtl8125_private *tp)
+{
+        int i;
+
+        for (i = tp->num_tx_rings; i < tp->HwSuppNumTxQueues; i++) {
+                struct rtl8125_ring *ring = &tp->lib_tx_ring[i];
+
+                if (!ring->allocated)
+                        continue;
+
+                if (ring->event.enabled)
+                        rtl8125_enable_event(ring);
+
+                rtl8125_init_tx_ring(ring);
+        }
+
+        for (i = tp->num_rx_rings; i < tp->HwSuppNumRxQueues; i++) {
+                struct rtl8125_ring *ring = &tp->lib_rx_ring[i];
+
+                if (!ring->allocated)
+                        continue;
+
+                if (ring->event.enabled)
+                        rtl8125_enable_event(ring);
+
+                rtl8125_init_rx_ring(ring);
+        }
+}
 
 /*
 int rtl8125_lib_printf_macio_regs(struct net_device *ndev, struct rtl8125_regs_save *stats)

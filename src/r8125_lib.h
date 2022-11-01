@@ -208,4 +208,6 @@ int rtl8125_lib_get_stats(struct net_device *ndev, struct rtl8125_counters *stat
 
 int rtl8125_lib_save_regs(struct net_device *ndev, struct rtl8125_regs_save *stats);
 
+void rtl8125_init_lib_ring(struct rtl8125_private *tp);
+
 #endif /* _LINUX_rtl8125_LIB_H */
