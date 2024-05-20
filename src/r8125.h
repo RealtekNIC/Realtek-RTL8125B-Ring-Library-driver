@@ -2750,7 +2750,7 @@ rtl8125_num_lib_rx_rings(struct rtl8125_private *tp)
 {
         int count, i;
 
-        for (count = 0, i = tp->num_rx_rings; i < tp->HwSuppNumRxQueues; i++)
+        for (count = 0, i = 0; i < tp->HwSuppNumRxQueues; i++)
                 if(tp->lib_rx_ring[i].enabled)
                         count++;
 
@@ -2780,7 +2780,13 @@ rtl8125_tot_tx_rings(struct rtl8125_private *tp)
 static inline unsigned int
 rtl8125_tot_rx_rings(struct rtl8125_private *tp)
 {
-        return tp->num_rx_rings + rtl8125_num_lib_rx_rings(tp);
+        unsigned int num_lib_rx_rings;
+
+        num_lib_rx_rings = rtl8125_num_lib_rx_rings(tp);
+        if (num_lib_rx_rings > 0)
+                return num_lib_rx_rings;
+        else
+                return tp->num_rx_rings;
 }
 
 static inline struct netdev_queue *txring_txq(const struct rtl8125_tx_ring *ring)

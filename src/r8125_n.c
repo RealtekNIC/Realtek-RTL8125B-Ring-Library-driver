@@ -17880,10 +17880,12 @@ rtl8125_desc_addr_fill(struct rtl8125_private *tp)
                 RTL_W32(tp, ring->tdsar_reg + 4, ((u64)ring->TxPhyAddr >> 32));
         }
 
-        for (i = 0; i < tp->num_rx_rings; i++) {
-                struct rtl8125_rx_ring *ring = &tp->rx_ring[i];
-                RTL_W32(tp, ring->rdsar_reg, ((u64)ring->RxPhyAddr & DMA_BIT_MASK(32)));
-                RTL_W32(tp, ring->rdsar_reg + 4, ((u64)ring->RxPhyAddr >> 32));
+        if (rtl8125_num_lib_rx_rings(tp) == 0) {
+                for (i = 0; i < tp->num_rx_rings; i++) {
+                        struct rtl8125_rx_ring *ring = &tp->rx_ring[i];
+                        RTL_W32(tp, ring->rdsar_reg, ((u64)ring->RxPhyAddr & DMA_BIT_MASK(32)));
+                        RTL_W32(tp, ring->rdsar_reg + 4, ((u64)ring->RxPhyAddr >> 32));
+                }
         }
 }
 

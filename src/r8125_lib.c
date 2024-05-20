@@ -111,9 +111,7 @@ static struct rtl8125_ring *rtl8125_get_rx_ring(struct rtl8125_private *tp)
 {
         int i;
 
-        WARN_ON_ONCE(tp->num_rx_rings < 1);
-
-        for (i = tp->num_rx_rings; i < tp->HwSuppNumRxQueues; i++) {
+        for (i = 0; i < tp->HwSuppNumRxQueues; i++) {
                 if (i < R8125_MAX_RX_QUEUES) {
                         struct rtl8125_ring *ring = &tp->lib_rx_ring[i];
                         if (!ring->allocated) {
@@ -144,7 +142,10 @@ static void rtl8125_init_rx_ring(struct rtl8125_ring *ring)
 
         rtl8125_lib_rx_fill(ring);
 
-        rdsar_reg = RDSAR_Q1_LOW_8125 + (ring->queue_num - 1) * 8;
+        if (ring->queue_num > 0)
+                rdsar_reg = RDSAR_Q1_LOW_8125 + (ring->queue_num - 1) * 8;
+        else
+                rdsar_reg = RxDescAddrLow;
         RTL_W32(tp, rdsar_reg, ((u64)ring->desc_daddr & DMA_BIT_MASK(32)));
         RTL_W32(tp, rdsar_reg + 4, ((u64)ring->desc_daddr >> 32));
 }
@@ -349,7 +350,7 @@ static int rtl8125_all_ring_released(struct rtl8125_private *tp)
                         goto exit;
         }
 
-        for (i = tp->num_rx_rings; i < tp->HwSuppNumRxQueues; i++) {
+        for (i = 0; i < tp->HwSuppNumRxQueues; i++) {
                 struct rtl8125_ring *ring = &tp->lib_rx_ring[i];
                 if (ring->allocated)
                         goto exit;
@@ -497,8 +498,12 @@ int rtl8125_request_event(struct rtl8125_ring *ring, unsigned long flags,
                 /* Update MSI-X table entry with @addr and @data */
                 /* Initialize any MSI-X/interrupt related register in HW */
                 u16 reg = message_id * 0x10;
+                bool locked;
 
-                rtnl_lock();
+                if (!rtnl_trylock())
+                        locked = false;
+                else
+                        locked = true;
 
                 ring->event.addr = rtl8125_eri_read(tp, reg, 4, ERIAR_MSIX);
                 ring->event.addr |= (u64)rtl8125_eri_read(tp, reg + 4, 4, ERIAR_MSIX) << 32;
@@ -510,7 +515,8 @@ int rtl8125_request_event(struct rtl8125_ring *ring, unsigned long flags,
                 rtl8125_eri_write(tp, reg + 8, 4, data, ERIAR_MSIX);
                 rtl8125_eri_write(tp, reg + 12, 4, data >> 32, ERIAR_MSIX);
 
-                rtnl_unlock();
+                if (locked)
+                        rtnl_unlock();
 
                 ring->event.message_id = message_id;
                 ring->event.allocated = 1;
@@ -866,7 +872,7 @@ void rtl8125_init_lib_ring(struct rtl8125_private *tp)
                 rtl8125_init_tx_ring(ring);
         }
 
-        for (i = tp->num_rx_rings; i < tp->HwSuppNumRxQueues; i++) {
+        for (i = 0; i < tp->HwSuppNumRxQueues; i++) {
                 struct rtl8125_ring *ring = &tp->lib_rx_ring[i];
 
                 if (!ring->allocated)
