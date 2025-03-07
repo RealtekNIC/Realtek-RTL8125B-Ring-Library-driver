@@ -1,0 +1,20 @@
+# Features enabled
+ifeq ($(building_out_of_srctree),1)
+ccflags-y += -I$(TOPDIR)/src/kernel-5.15/kernel_platform/msm-kernel/include/linux
+endif
+
+ccflags-y += -DENABLE_USE_FIRMWARE_FILE
+ccflags-y += -DCONFIG_ASPM -DENABLE_S5WOL -DENABLE_EEE -DENABLE_TX_NO_CLOSE -DCONFIG_R8125_NAPI -DCONFIG_R8125_VLAN -DENABLE_DOUBLE_VLAN
+ccflags-y += -DENABLE_MULTIPLE_TX_QUEUE -DENABLE_RSS_SUPPORT -DENABLE_LIB_SUPPORT
+
+ccflags-y += -Wno-error
+
+obj-m += r8125.o
+
+r8125-y := r8125_n.o \
+		rtl_eeprom.o \
+		rtltool.o \
+		r8125_rss.o \
+		r8125_lib.o \
+		r8125_firmware.o
+
