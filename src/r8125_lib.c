@@ -641,7 +641,7 @@ int rtl8125_set_ring_intr_mod(struct rtl8125_ring *ring, int delay)
         ring->event.delay = delay;
 
         /* Set interrupt moderation timer */
-        rtl8125_hw_set_timer_int_8125(tp, ring->event.message_id, ring->event.delay);
+        rtl8125_hw_set_timer_int(tp, ring->event.message_id, ring->event.delay);
 
         if (locked)
                 rtnl_unlock();
